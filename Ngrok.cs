@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -9,11 +10,15 @@ namespace TCPServerApp
     class Ngrok
     {
         string ngrok_download_url;
+        string file_name = "ngrok.zip";
 
         public Ngrok()
         {
-            //If ngrok is not in root folder, download and unzip
-            if (!File.Exists("ngrok") || !File.Exists("ngrok.exe"))
+            //if the zip is there, just unzip
+            if (File.Exists(file_name)) UnzipFile(file_name);
+
+            //If ngrok executable is not in root folder, download and unzip
+            if (!File.Exists("ngrok") && !File.Exists("ngrok.exe"))
             {
                 if (string.IsNullOrEmpty(NgrokURL()))
                 {
@@ -29,9 +34,29 @@ namespace TCPServerApp
 
         private async Task DownloadNgrok()
         {
-            Console.WriteLine("Downloading Ngrok now ... ");
+            Console.WriteLine("Downloading Ngrok ... ");
+            
+            using (HttpClient httpClient = new HttpClient())
+            {
+                var stream = await httpClient.GetStreamAsync(ngrok_download_url);
+                using (var fileStream = File.Create(file_name))
+                {
+                    await stream.CopyToAsync(fileStream);
+                }
 
-           
+                UnzipFile(file_name);
+            }
+
+            Console.WriteLine("Ngrok now available!");
+        }
+
+        private void UnzipFile(string path)
+        {
+            Console.WriteLine("Extracting Executable ... ");
+
+            ZipFile.ExtractToDirectory(path, "./");
+            File.Delete(path);
+
         }
 
         private string NgrokURL()
