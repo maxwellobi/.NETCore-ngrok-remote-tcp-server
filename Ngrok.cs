@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -11,6 +12,11 @@ namespace TCPServerApp
     {
         string ngrok_download_url;
         string file_name = "ngrok.zip";
+        
+
+        public string AuthToken { get; set; }
+
+        public Process Compiler { get; set; }
 
         public Ngrok()
         {
@@ -30,6 +36,26 @@ namespace TCPServerApp
 
                 else DownloadNgrok().Wait();
             }
+
+        }
+
+        public void Start()
+        {
+
+        }
+
+        public void ExecuteNgrok(string arguments)
+        {
+            Compiler = new Process();
+
+            Compiler.StartInfo.FileName = "ngrok";
+            Compiler.StartInfo.Arguments = arguments;
+            Compiler.StartInfo.UseShellExecute = false;
+            Compiler.StartInfo.RedirectStandardOutput = true;
+            Compiler.StartInfo.CreateNoWindow = true;
+            Compiler.Start();
+
+            var result = Compiler.StandardOutput.ReadToEnd();
         }
 
         private async Task DownloadNgrok()
@@ -46,8 +72,6 @@ namespace TCPServerApp
 
                 UnzipFile(file_name);
             }
-
-            Console.WriteLine("Ngrok now available!");
         }
 
         private void UnzipFile(string path)
