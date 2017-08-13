@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading;
 
 namespace TCPServerApp
 {
@@ -10,7 +11,7 @@ namespace TCPServerApp
             Console.WriteLine("Welcome to TCP Remote Server");
 
             if (args.Length < 2) Exit();
-            else if (!args[0].Equals("--authtoken") || string.IsNullOrEmpty(args[1])) Exit();
+            else if (!args[0].ToLower().Equals("--authtoken") || string.IsNullOrEmpty(args[1])) Exit();
 
             string ngrok_auth_token = args[1].Trim();
 
@@ -24,7 +25,11 @@ namespace TCPServerApp
             ngrok.AuthToken = ngrok_auth_token;
             ngrok.Start(server.TCPPort); //ngrok has created a tcp tunnel to local interface 
 
+            //ngrok process is a blocking thread so its async. Delay for 2 secs to complete propagation
+            Thread.Sleep(2000);
+
             //retrieve the public channel from ngrok API
+            ngrok.PublicUrl().Wait();
 
             //start the local TCP server
             server.StartListening()
@@ -36,7 +41,7 @@ namespace TCPServerApp
 
         static void Exit()
         {
-            Console.WriteLine("Your provided invalid arguments.");
+            Console.WriteLine("You provided invalid arguments.");
             Console.WriteLine("Usage: specify your ngrok authtoken using --authtoken ");
             Console.WriteLine("Press any key to exit");
             Console.Read();
