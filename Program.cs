@@ -34,9 +34,12 @@ namespace TCPServerApp
             //start the local TCP server
             server.StartListening()
                 .Wait(); //listen indefinitely until a .quit message is received
-            
-          
-            Console.Read();
+
+
+            //kill internal ngrok thread
+            ngrok.Compiler.Kill();
+
+            //Console.Read();
         }
 
         static void Exit()
