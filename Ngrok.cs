@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -12,7 +14,7 @@ namespace TCPServerApp
     {
         string ngrok_download_url;
         string file_name = "ngrok.zip";
-        
+        string base_api = "http://127.0.0.1:4040/api";
 
         public string AuthToken { get; set; }
 
@@ -44,11 +46,12 @@ namespace TCPServerApp
             if (string.IsNullOrEmpty(AuthToken)) throw new System.ArgumentNullException("Invalid ngrok authentication token");
             else
             {
-                ExecuteNgrok("authtoken  " + AuthToken)
-                    .Kill(); //kill the process that creates the auth token - process might internally exit before kill
+                Console.WriteLine("Starting ngrok TCP tunnel");
 
+                ExecuteNgrok("authtoken  " + AuthToken);
                 ExecuteNgrok("tcp " + TCPPort)
-                    .WaitForExit();  //keep tunnel service alive
+                    .WaitForExit();
+               
             }
         }
 
@@ -65,6 +68,24 @@ namespace TCPServerApp
             var result = Compiler.StandardOutput.ReadToEnd();
             return Compiler;
         }
+
+        public async Task<string> PublicUrl()
+        {
+            Console.WriteLine("Fetching Ngrok Tunnels ... ");
+            
+            using (HttpClient httpClient = new HttpClient())
+            {
+                httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                string tunnels = await httpClient.GetStringAsync(base_api + "/tunnels");
+
+                var tunnelObj = JsonConvert.DeserializeObject<dynamic>(tunnels);
+                var tunnel = tunnelObj.tunnels[0];
+
+                Console.WriteLine("Retrieved Tunnel: " + tunnel.public_url);
+
+                return tunnel.public_url;
+            }
+        }     
 
         private async Task DownloadNgrok()
         {
