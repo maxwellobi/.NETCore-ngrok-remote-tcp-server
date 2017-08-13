@@ -39,15 +39,22 @@ namespace TCPServerApp
 
         }
 
-        public void Start()
+        public void Start(string TCPPort)
         {
+            if (string.IsNullOrEmpty(AuthToken)) throw new System.ArgumentNullException("Invalid ngrok authentication token");
+            else
+            {
+                ExecuteNgrok("authtoken  " + AuthToken)
+                    .Kill(); //kill the process that creates the auth token - process might internally exit before kill
 
+                ExecuteNgrok("tcp " + TCPPort)
+                    .WaitForExit();  //keep tunnel service alive
+            }
         }
 
-        public void ExecuteNgrok(string arguments)
+        public Process ExecuteNgrok(string arguments)
         {
             Compiler = new Process();
-
             Compiler.StartInfo.FileName = "ngrok";
             Compiler.StartInfo.Arguments = arguments;
             Compiler.StartInfo.UseShellExecute = false;
@@ -56,6 +63,7 @@ namespace TCPServerApp
             Compiler.Start();
 
             var result = Compiler.StandardOutput.ReadToEnd();
+            return Compiler;
         }
 
         private async Task DownloadNgrok()
