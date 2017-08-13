@@ -1,1 +1,1 @@
-# .NETCore-ngrok-remote-tcp-server
+# .NETCore TCP server with ngrok
