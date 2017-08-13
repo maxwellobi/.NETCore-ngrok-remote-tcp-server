@@ -49,9 +49,10 @@ namespace TCPServerApp
                 Console.WriteLine("Starting ngrok TCP tunnel");
 
                 ExecuteNgrok("authtoken  " + AuthToken);
-                ExecuteNgrok("tcp " + TCPPort)
-                    .WaitForExit();
-               
+                Task.Run(
+                    () => ExecuteNgrok("tcp " + TCPPort)
+                    .WaitForExit()  //keep tunnel service alive
+                );
             }
         }
 
