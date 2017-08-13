@@ -19,7 +19,7 @@ namespace TCPServerApp
             var endPoint = (IPEndPoint)listener.LocalEndpoint;
             TCPPort = endPoint.Port.ToString();
 
-            Console.WriteLine("TCP server started and listening on {1}", TCPPort);
+            Console.WriteLine("TCP server started and listening on {0}", TCPPort);
         }
 
         public async Task StartListening()
