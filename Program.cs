@@ -35,9 +35,8 @@ namespace TCPServerApp
             server.StartListening()
                 .Wait(); //listen indefinitely until a .quit message is received
 
-
             //kill internal ngrok thread
-            ngrok.Compiler.Kill();
+            ngrok.process.Kill();
 
             //Console.Read();
         }
