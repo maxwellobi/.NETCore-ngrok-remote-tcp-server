@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace TCPServerApp
 {
@@ -14,16 +15,16 @@ namespace TCPServerApp
     {
         string ngrok_download_url;
         string file_name = "ngrok.zip";
-        string base_api = "http://127.0.0.1:4040/api";
+        string ngrok_base_api = "http://127.0.0.1:4040/api";
+
+        public Process process;
 
         public string AuthToken { get; set; }
 
-        public Process Compiler { get; set; }
-
         public Ngrok()
         {
-            //if the zip is there, just unzip
-            if (File.Exists(file_name)) UnzipFile(file_name);
+            //if the ngrok zip is there, just unzip
+            if (File.Exists(file_name)) UnZipArchive();
 
             //If ngrok executable is not in root folder, download and unzip
             if (!File.Exists("ngrok") && !File.Exists("ngrok.exe"))
@@ -48,7 +49,7 @@ namespace TCPServerApp
             {
                 Console.WriteLine("Starting ngrok TCP tunnel");
 
-                ExecuteNgrok("authtoken  " + AuthToken);
+                ExecuteNgrok("authtoken  " + AuthToken).WaitForExit();
                 Task.Run(
                     () => ExecuteNgrok("tcp " + TCPPort)
                     .WaitForExit()  //keep tunnel service alive
@@ -56,19 +57,35 @@ namespace TCPServerApp
             }
         }
 
-        public Process ExecuteNgrok(string arguments)
-        {
-            Compiler = new Process();
-            Compiler.StartInfo.FileName = "ngrok";
-            Compiler.StartInfo.Arguments = arguments;
-            Compiler.StartInfo.UseShellExecute = false;
-            Compiler.StartInfo.RedirectStandardOutput = true;
-            Compiler.StartInfo.CreateNoWindow = true;
-            Compiler.Start();
-
-            var result = Compiler.StandardOutput.ReadToEnd();
-            return Compiler;
+        public Process ExecuteNgrok(string arguments){
+            return process = RunProcess("./ngrok", arguments);
         }
+
+        public void UnZipArchive(){
+
+            Console.WriteLine("Extracting Executable ... ");
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                ZipFile.ExtractToDirectory(file_name, "./");
+            else RunProcess("unzip", file_name).WaitForExit();
+
+            File.Delete(file_name);
+        }
+
+        private Process RunProcess(string command, string arguments){
+
+            Process process = new Process();
+            process.StartInfo.FileName = command;
+            process.StartInfo.Arguments = arguments;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.CreateNoWindow = true;
+            process.Start();
+
+            string result = process.StandardOutput.ReadToEnd();
+            Console.WriteLine(result);
+            return process;
+        }        
 
         public async Task<string> PublicUrl()
         {
@@ -77,13 +94,12 @@ namespace TCPServerApp
             using (HttpClient httpClient = new HttpClient())
             {
                 httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                string tunnels = await httpClient.GetStringAsync(base_api + "/tunnels");
+                string tunnels = await httpClient.GetStringAsync(ngrok_base_api + "/tunnels");
 
-                var tunnelObj = JsonConvert.DeserializeObject<dynamic>(tunnels);
-                var tunnel = tunnelObj.tunnels[0];
+                TunnelsResponse response = JsonConvert.DeserializeObject<TunnelsResponse>(tunnels);
+                var tunnel = response.tunnels[0];
 
                 Console.WriteLine("Retrieved Tunnel: " + tunnel.public_url);
-
                 return tunnel.public_url;
             }
         }     
@@ -100,17 +116,9 @@ namespace TCPServerApp
                     await stream.CopyToAsync(fileStream);
                 }
 
-                UnzipFile(file_name);
+                Console.WriteLine("Done With Download");
+                UnZipArchive(); //unzip the ngrok archive
             }
-        }
-
-        private void UnzipFile(string path)
-        {
-            Console.WriteLine("Extracting Executable ... ");
-
-            ZipFile.ExtractToDirectory(path, "./");
-            File.Delete(path);
-
         }
 
         private string NgrokURL()
@@ -134,5 +142,20 @@ namespace TCPServerApp
 
             return ngrok_download_url;
         }
+    }
+
+
+    class TunnelsResponse
+    {
+        public List<Tunnel> tunnels { get; set; }
+        public string uri { get; set; }
+    }
+
+    class Tunnel
+    {
+        public string name { get; set; }
+        public string uri { get; set; }
+        public string public_url { get; set; }
+        public string proto { get; set; }
     }
 }
