@@ -9,6 +9,12 @@ namespace TCPServerApp
     class ServerListener
     {
         TcpListener listener = null;
+        public NetworkStream stream = null;
+        public enum Command{
+            unrecognized,
+            download,
+            quit
+        }
 
         public string TCPPort { get; set; }
         
@@ -28,7 +34,7 @@ namespace TCPServerApp
             try
             {
                 string line = string.Empty;
-                while (line != null)
+                while (line != null) //line is null when you press CTRL+Z
                 {
                     Console.WriteLine("Waiting for client connection ...");
 
@@ -38,29 +44,42 @@ namespace TCPServerApp
                     Console.WriteLine("Connection received from {0} : {1}", clientEndPoint.Address.ToString(), clientEndPoint.Port.ToString());
 
                     //get the IO stream
-                    using (NetworkStream stream = remoteClient.GetStream())
+                    using (stream = remoteClient.GetStream())
                     {
-                        string message = string.Empty;
-                        while (!message.StartsWith(".quit")) //end connection if .quit is received 
-                        {
-                            SendPrompt(stream);
-                            message = GetMessage(stream);
-                        }
+                        //inform connected client of the exit command
+                        SendMessage("[enter '.quit' to terminate] >");
+                        
+                        string message;
+                        Command command;
+                        CommandExecutor CommandExecutor;
 
-                        //'.quite' received
+                        do{
+                            message = GetMessage().Split('\n')[0].Trim();
+                            string receivedCommand = message.Split(' ')[0].Trim();
+                            
+                            if(Enum.TryParse<Command>(receivedCommand, true, out command)){
+
+                                CommandExecutor = new CommandExecutor(this);
+                                CommandExecutor.Execute(command, message);
+
+                            }
+                            else if(receivedCommand == ".quit")  command = Command.quit;
+                            else SendMessage("unrecognized command: " + receivedCommand);
+
+                        }while(command != Command.quit);
+
+                        //'quit' received, send bye to client
                         byte[] data = Encoding.ASCII.GetBytes(" -- Good Bye --");
                         stream.Write(data, 0, data.Length);
                     }
 
 
-                    // '.quit' was sent
                     Console.WriteLine("Closed " + clientEndPoint.Address.ToString() + " connection. (press CTRL+Z to exit server)");
                     line = Console.ReadLine();
-
                     remoteClient.Dispose();
                 }
 
-                //CTRL+Z
+                //CTRL+Z was pressed
                 listener.Stop();
 
             }
@@ -76,17 +95,17 @@ namespace TCPServerApp
 
         }
 
-        private string GetMessage(NetworkStream stream)
+        private string GetMessage()
         {
-            byte[] readBuffer = new byte[1024];
+            byte[] readBuffer = new byte[1024]; //client messages should not be more than 1KB
             stream.Read(readBuffer, 0, readBuffer.Length);
             string message = Encoding.ASCII.GetString(readBuffer);
             return message.Trim();
         }
 
-        private void SendPrompt(NetworkStream stream)
+        public void SendMessage(String message)
         {
-            byte[] data = Encoding.ASCII.GetBytes("[enter '.quit' to terminate] >");
+            byte[] data = Encoding.ASCII.GetBytes(message);
             stream.Write(data, 0, data.Length);
         }
     }
